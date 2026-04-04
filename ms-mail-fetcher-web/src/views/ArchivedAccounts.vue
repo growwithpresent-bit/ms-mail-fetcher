@@ -1,9 +1,9 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CopyDocument, Refresh } from '@element-plus/icons-vue'
-import { deleteAccount, exportAccountsUrl, getAccounts, refreshAllAccountTokens } from '@/api/accounts'
+import { CopyDocument } from '@element-plus/icons-vue'
+import { deleteAccount, exportAccountsUrl, getAccounts, refreshAllAccountTokens, updateAccount } from '@/api/accounts'
 
 const router = useRouter()
 const route = useRoute()
@@ -16,6 +16,14 @@ const page = ref(1)
 const pageSize = ref(10)
 const search = ref('')
 const selectedRows = ref([])
+const detailDialogVisible = ref(false)
+const detailEditMode = ref(false)
+const detailSaving = ref(false)
+const detailForm = ref({
+    id: null,
+    email: '',
+    remark: '',
+})
 
 const thresholdDays = 30
 
@@ -110,6 +118,75 @@ function onPageChange() {
     fetchData()
 }
 
+function onOpenDetail(row) {
+    detailEditMode.value = false
+    detailForm.value = {
+        id: row.id,
+        email: row.email || '',
+        remark: row.remark || '',
+    }
+    detailDialogVisible.value = true
+}
+
+function onStartDetailEdit() {
+    detailEditMode.value = true
+}
+
+function onCancelDetailEdit() {
+    detailEditMode.value = false
+}
+
+async function onSaveDetail() {
+    if (!detailForm.value.id) return
+
+    detailSaving.value = true
+    try {
+        await updateAccount(detailForm.value.id, {
+            remark: detailForm.value.remark || null,
+        })
+        ElMessage.success('账号备注已更新')
+        detailEditMode.value = false
+        await fetchData()
+    } catch (error) {
+        ElMessage.error(error.message || '保存失败')
+    } finally {
+        detailSaving.value = false
+    }
+}
+
+function _timestampText() {
+    const now = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+}
+
+function _downloadTextFile(content, fileName) {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+}
+
+function onExportSelected() {
+    if (!selectedRows.value.length) {
+        ElMessage.warning('请先勾选账号')
+        return
+    }
+
+    const content = selectedRows.value
+        .map((row) => `${row.email}----${row.password}----${row.client_id}----${row.refresh_token}`)
+        .join('\n')
+
+    const fileName = `accounts_selected_archived_${_timestampText()}.txt`
+    _downloadTextFile(content, fileName)
+    ElMessage.success(`已导出 ${selectedRows.value.length} 条账号`)
+}
+
 function onExportAll() {
     const url = exportAccountsUrl({
         is_active: false,
@@ -135,7 +212,7 @@ async function onDelete(row) {
 
 async function onRefreshAllTokens() {
     try {
-        await ElMessageBox.confirm('确认一键刷新当前筛选范围内的所有账号 Token 吗？', '提示', {
+        await ElMessageBox.confirm('确认一键刷新当前筛选范围内所有账号 Token 吗？', '提示', {
             type: 'warning',
             confirmButtonText: '确认刷新',
             cancelButtonText: '取消',
@@ -146,9 +223,7 @@ async function onRefreshAllTokens() {
             is_active: false,
             search: search.value,
         })
-        ElMessage.success(
-            `刷新完成：总数 ${result.total || 0}，成功 ${result.success || 0}，失败 ${result.failed || 0}`,
-        )
+        ElMessage.success(`刷新完成：总数 ${result.total || 0}，成功 ${result.success || 0}，失败 ${result.failed || 0}`)
         await fetchData()
     } catch (error) {
         if (error?.message) {
@@ -217,6 +292,9 @@ onMounted(() => {
                         <el-button type="primary" @click="onSearch">查询</el-button>
                         <el-button @click="resetFilters">重置</el-button>
                         <el-button @click="onExportAll">一键导出所有</el-button>
+                        <el-button type="primary" plain :disabled="!selectedRows.length" @click="onExportSelected">
+                            批量导出已选（{{ selectedRows.length }}）
+                        </el-button>
                         <el-button :loading="refreshAllLoading" @click="onRefreshAllTokens">一键刷新Token</el-button>
                         <el-button type="danger" plain :disabled="!selectedRows.length" @click="onBatchDeleteSelected">
                             批量删除已选（{{ selectedRows.length }}）
@@ -244,7 +322,9 @@ onMounted(() => {
                         </div>
                     </template>
                 </el-table-column>
-                <el-table-column label="Client ID" min-width="220">
+
+                <!-- 这个东西不要删 只是暂时注释 -->
+                <!-- <el-table-column label="Client ID" min-width="220">
                     <template #default="{ row }">
                         <div class="copy-cell">
                             <span class="truncate-text">{{ row.client_id }}</span>
@@ -260,7 +340,7 @@ onMounted(() => {
                                 @click="handleCopy(row.refresh_token)" />
                         </div>
                     </template>
-                </el-table-column>
+                </el-table-column> -->
                 <el-table-column label="距上次刷新天数" width="140" align="center">
                     <template #default="{ row }">
                         <el-tag :type="row.days_since_refresh > thresholdDays ? 'danger' : 'success'" effect="light"
@@ -269,12 +349,17 @@ onMounted(() => {
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-                <el-table-column label="操作" width="250" fixed="right">
+                <el-table-column label="备注" min-width="180">
+                    <template #default="{ row }">
+                        <span class="remark-ellipsis">{{ row.remark || '' }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="320" fixed="right">
                     <template #default="{ row }">
                         <el-space>
                             <el-button type="primary" link @click="goMail(row, 'inbox')">收信</el-button>
                             <el-button type="warning" link @click="goMail(row, 'spam')">垃圾</el-button>
+                            <el-button type="success" link @click="onOpenDetail(row)">详情</el-button>
                             <el-button type="danger" link @click="onDelete(row)">彻底删除</el-button>
                         </el-space>
                     </template>
@@ -287,6 +372,23 @@ onMounted(() => {
                     :page-sizes="[10, 20, 50, 100]" @change="onPageChange" />
             </div>
         </el-card>
+
+        <el-dialog v-model="detailDialogVisible" :title="detailEditMode ? '编辑备注' : '账号详情'" width="520px">
+            <el-form label-width="90px">
+                <el-form-item label="账号">
+                    <el-input :model-value="detailForm.email" disabled />
+                </el-form-item>
+                <el-form-item label="备注">
+                    <el-input v-model="detailForm.remark" type="textarea" :rows="4" placeholder="请输入备注" :disabled="!detailEditMode" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="detailDialogVisible = false">关闭</el-button>
+                <el-button v-if="!detailEditMode" type="primary" @click="onStartDetailEdit">编辑</el-button>
+                <el-button v-else @click="onCancelDetailEdit">取消编辑</el-button>
+                <el-button v-if="detailEditMode" type="primary" :loading="detailSaving" @click="onSaveDetail">保存</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -347,6 +449,15 @@ onMounted(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.remark-ellipsis {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
 .refresh-btn {

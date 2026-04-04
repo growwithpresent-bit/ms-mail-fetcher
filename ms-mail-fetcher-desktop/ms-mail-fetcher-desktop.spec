@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: utf-8 -*-
+﻿# -*- mode: python ; coding: utf-8 -*-
 
 from pathlib import Path
 
@@ -6,6 +6,7 @@ from PyInstaller.utils.hooks import collect_submodules
 
 
 project_dir = Path(SPECPATH).resolve()
+server_dir = project_dir.parent / "ms-mail-fetcher-server"
 
 
 datas = [
@@ -26,8 +27,8 @@ hiddenimports += collect_submodules("webview")
 
 
 a = Analysis(
-    ["desktop_main.py"],
-    pathex=[str(project_dir)],
+    [str(project_dir / "desktop_main.py")],
+    pathex=[str(project_dir), str(server_dir)],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

@@ -1,8 +1,9 @@
-import ctypes
+﻿import ctypes
 import inspect
 import logging
 import os
 import socket
+import sys
 import threading
 import time
 from pathlib import Path
@@ -10,6 +11,14 @@ from pathlib import Path
 import requests
 import uvicorn
 import webview
+
+DESKTOP_ROOT = Path(__file__).resolve().parent
+SERVER_ROOT = DESKTOP_ROOT.parent / 'ms-mail-fetcher-server'
+if str(SERVER_ROOT) not in sys.path:
+    sys.path.insert(0, str(SERVER_ROOT))
+
+os.environ.setdefault('MS_MAIL_FETCHER_CONFIG', str(DESKTOP_ROOT / 'server.config.json'))
+os.environ.setdefault('MS_MAIL_FETCHER_FRONTEND_DIR', str(DESKTOP_ROOT / 'template'))
 
 from app.runtime import create_app, load_runtime_config
 
@@ -261,3 +270,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

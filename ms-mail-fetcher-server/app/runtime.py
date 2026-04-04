@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 import os
 import socket
@@ -32,6 +32,8 @@ if not logger.handlers:
 
 CONFIG_FILE_NAME = "server.config.json"
 FRONTEND_TEMPLATE_DIR = "template"
+ENV_CONFIG_PATH = "MS_MAIL_FETCHER_CONFIG"
+ENV_FRONTEND_DIR = "MS_MAIL_FETCHER_FRONTEND_DIR"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 18765
 DEFAULT_RELOAD = False
@@ -73,7 +75,10 @@ def _is_port_available(host: str, port: int) -> bool:
 
 
 def load_runtime_config() -> tuple[dict, Path]:
-    if getattr(sys, "frozen", False):
+    env_config_path = os.getenv(ENV_CONFIG_PATH)
+    if env_config_path:
+        config_path = Path(env_config_path).expanduser().resolve()
+    elif getattr(sys, "frozen", False):
         config_path = Path(sys.executable).resolve().parent / CONFIG_FILE_NAME
     else:
         config_path = Path(__file__).resolve().parent.parent / CONFIG_FILE_NAME
@@ -132,9 +137,20 @@ def resolve_server_bind() -> tuple[str, int, bool, Path]:
 
 def resolve_frontend_dist() -> Path | None:
     project_root = Path(__file__).resolve().parent.parent
-    candidates = [
-        project_root / FRONTEND_TEMPLATE_DIR,
-    ]
+    workspace_root = project_root.parent
+
+    candidates = []
+
+    env_frontend_dir = os.getenv(ENV_FRONTEND_DIR)
+    if env_frontend_dir:
+        candidates.append(Path(env_frontend_dir).expanduser())
+
+    candidates.extend(
+        [
+            project_root / FRONTEND_TEMPLATE_DIR,
+            workspace_root / "ms-mail-fetcher-desktop" / FRONTEND_TEMPLATE_DIR,
+        ]
+    )
 
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
@@ -145,7 +161,7 @@ def resolve_frontend_dist() -> Path | None:
 
     for path in candidates:
         if (path / "index.html").exists():
-            return path
+            return path.resolve()
 
     return None
 
