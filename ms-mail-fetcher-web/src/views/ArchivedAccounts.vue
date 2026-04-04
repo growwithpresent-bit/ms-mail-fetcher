@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
-import { deleteAccount, exportAccountsUrl, getAccounts, refreshAllAccountTokens, updateAccount } from '@/api/accounts'
+import { deleteAccount, exportAccountsUrl, exportSelectedAccountsUrl, getAccounts, refreshAllAccountTokens, updateAccount } from '@/api/accounts'
 
 const router = useRouter()
 const route = useRoute()
@@ -160,37 +160,26 @@ function _timestampText() {
     return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 }
 
-function _downloadTextFile(content, fileName) {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-}
-
 function onExportSelected() {
     if (!selectedRows.value.length) {
-        ElMessage.warning('请先勾选账号')
+        ElMessage.warning('\u8bf7\u5148\u52fe\u9009\u8d26\u53f7')
         return
     }
 
-    const content = selectedRows.value
-        .map((row) => `${row.email}----${row.password}----${row.client_id}----${row.refresh_token}`)
-        .join('\n')
-
-    const fileName = `accounts_selected_archived_${_timestampText()}.txt`
-    _downloadTextFile(content, fileName)
-    ElMessage.success(`已导出 ${selectedRows.value.length} 条账号`)
+    const url = exportSelectedAccountsUrl(
+        {
+            is_active: false,
+        },
+        selectedRows.value.map((row) => row.id),
+        'accounts_selected_archived',
+    )
+    window.open(url, '_blank')
 }
 
 function onExportAll() {
     const url = exportAccountsUrl({
         is_active: false,
-    })
+    }, 'accounts_export_archived')
     window.open(url, '_blank')
 }
 

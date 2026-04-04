@@ -255,7 +255,6 @@ def main() -> None:
             window_kwargs["storage_path"] = str(storage_path)
         if "text_select" in create_window_params:
             window_kwargs["text_select"] = True
-
         main_window = webview.create_window(**window_kwargs)
         _bind_window_size_persistence(main_window, api_url, initial_width, initial_height)
         webview.start()

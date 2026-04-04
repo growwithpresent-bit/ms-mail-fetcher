@@ -43,8 +43,13 @@ export function importAccounts(formData) {
   })
 }
 
-export function exportAccountsUrl(params) {
-  return buildUrl('/api/accounts/export', params)
+export function exportAccountsUrl(params, filenamePrefix) {
+  return buildUrl('/api/accounts/export', { ...params, filename_prefix: filenamePrefix })
+}
+
+export function exportSelectedAccountsUrl(params, ids, filenamePrefix) {
+  const accountIds = Array.isArray(ids) ? ids.filter(Boolean).join(',') : ''
+  return buildUrl('/api/accounts/export', { ...params, ids: accountIds, filename_prefix: filenamePrefix })
 }
 
 export function getMailList(accountId, folder, params) {

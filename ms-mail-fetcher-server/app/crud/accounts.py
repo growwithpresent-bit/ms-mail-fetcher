@@ -168,13 +168,21 @@ def import_accounts(
     return ImportResult(inserted=inserted, skipped=skipped, errors=errors)
 
 
-def export_accounts_text(db: Session, is_active: bool, search: str | None, account_type: str | None) -> str:
+def export_accounts_text(
+    db: Session,
+    is_active: bool,
+    search: str | None,
+    account_type: str | None,
+    account_ids: list[int] | None = None,
+) -> str:
     filters = [Account.is_active == is_active]
     if search:
         keyword = f"%{search.strip()}%"
         filters.append(or_(Account.email.like(keyword), Account.remark.like(keyword)))
     if account_type:
         filters.append(Account.account_type == account_type)
+    if account_ids:
+        filters.append(Account.id.in_(account_ids))
 
     items = db.query(Account).filter(and_(*filters)).order_by(Account.id.desc()).all()
     return "\n".join(

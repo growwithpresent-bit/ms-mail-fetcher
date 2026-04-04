@@ -9,6 +9,7 @@ import {
     createAccountType,
     deleteAccountType,
     exportAccountsUrl,
+    exportSelectedAccountsUrl,
     getAccounts,
     getAccountTypes,
     importAccounts,
@@ -460,31 +461,22 @@ function _timestampText() {
     return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 }
 
-function _downloadTextFile(content, fileName) {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-}
-
 function onExportSelected() {
     if (!selectedRows.value.length) {
-        ElMessage.warning('请先勾选账号')
+        ElMessage.warning('\u8bf7\u5148\u52fe\u9009\u8d26\u53f7')
         return
     }
 
-    const content = selectedRows.value
-        .map((row) => `${row.email}----${row.password}----${row.client_id}----${row.refresh_token}`)
-        .join('\n')
-
-    const fileName = `accounts_selected_active_${_timestampText()}.txt`
-    _downloadTextFile(content, fileName)
-    ElMessage.success(`已导出 ${selectedRows.value.length} 条账号`)
+    const url = exportSelectedAccountsUrl(
+        {
+            is_active: true,
+            search: search.value,
+            type: accountType.value,
+        },
+        selectedRows.value.map((row) => row.id),
+        'accounts_selected_active',
+    )
+    window.open(url, '_blank')
 }
 
 function onExport() {
@@ -492,7 +484,7 @@ function onExport() {
         is_active: true,
         search: search.value,
         type: accountType.value,
-    })
+    }, 'accounts_export_active')
     window.open(url, '_blank')
 }
 

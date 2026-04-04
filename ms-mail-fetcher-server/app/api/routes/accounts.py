@@ -1,3 +1,5 @@
+from datetime import datetime
+import re
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
@@ -77,12 +79,30 @@ def export_accounts_route(
     is_active: bool = Query(True),
     search: str | None = Query(None),
     type: str | None = Query(None),
+    ids: str | None = Query(None),
+    filename_prefix: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    output = export_accounts_text(db=db, is_active=is_active, search=search, account_type=type)
+    account_ids = None
+    if ids:
+        account_ids = [int(item) for item in ids.split(",") if item.strip().isdigit()]
+
+    output = export_accounts_text(
+        db=db,
+        is_active=is_active,
+        search=search,
+        account_type=type,
+        account_ids=account_ids,
+    )
+
+    raw_prefix = (filename_prefix or "accounts_export").strip() or "accounts_export"
+    safe_prefix = re.sub(r"[^A-Za-z0-9_-]+", "_", raw_prefix).strip("_") or "accounts_export"
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    file_name = f"{safe_prefix}_{timestamp}.txt"
+
     return PlainTextResponse(
         content=output,
-        headers={"Content-Disposition": "attachment; filename=accounts_export.txt"},
+        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
     )
 
 
